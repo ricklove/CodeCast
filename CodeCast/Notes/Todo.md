@@ -8,19 +8,15 @@
 - X Test Comment
 - X Make the rectangle partially transparent!
 - X Clear pictures on preview uncheck!
-- Checkin!
+- X Checkin!
+- X Test and improve memory use
+- X Identify what is causing it to lock up sometimes: Flushing the video stream was causing the problem
+- X Identify low contrast areas
 
-- Identify what is causing it to lock up sometimes
+- Draw High Contrast areas
+
+- Test video size
+
 - Make sure the video is saved even if the program crashes
-- Test and improve memory use
 
-
-Great!
-
-Added a comment Screen!
-
-Test this program at full run!
-
-Everyhing is ok so far!
-
-Thats good
+Of course, you can change that!

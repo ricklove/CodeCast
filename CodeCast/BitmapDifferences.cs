@@ -18,14 +18,13 @@ namespace CodeCast
             var JUMPPIXELS = 7;
             //var MINCHANGESIZE = 0;
 
-            var changedPixels = new List<Point>();
+            var changedPixels = new List<PixelInfo>();
 
             unsafe
             {
                 BitmapData aData = a.LockBits(new Rectangle(0, 0, a.Width, a.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, a.PixelFormat);
                 BitmapData bData = b.LockBits(new Rectangle(0, 0, b.Width, b.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, b.PixelFormat);
 
-                int PixelSize = 4;
                 var iOffset = 0;
                 var jOffset = 0;
 
@@ -65,19 +64,17 @@ namespace CodeCast
                             || j >= aData.Height
                             || j >= bData.Height)
                         {
-                            changedPixels.Add(new Point(i, j));
+                            changedPixels.Add(new PixelInfo(i, j, 255));
                             continue;
                         }
 
-                        var aRow = (byte*)aData.Scan0 + (j * aData.Stride);
-                        var bRow = (byte*)bData.Scan0 + (j * bData.Stride);
-
-                        var aVal = aRow[i * PixelSize];
-                        var bVal = bRow[i * PixelSize];
+                        var aVal = GetPixelByte(aData, i, j, PixelBytePart.Blue);
+                        var bVal = GetPixelByte(bData, i, j, PixelBytePart.Blue);
 
                         if (aVal != bVal)
                         {
-                            changedPixels.Add(new Point(i, j));
+                            changedPixels.Add(new PixelInfo(i, j, GetContrast(bData, i, j)));
+                            //var n = ((byte*)bData.Scan0 + ((j +-3) * bData.Stride))[
                         }
 
                         iOffset++;
@@ -147,108 +144,198 @@ namespace CodeCast
                     continue;
                 }
 
-                r.AddPixel(new Point(r.Left - JUMPPIXELS, r.Top - JUMPPIXELS));
-                r.AddPixel(new Point(r.Right + JUMPPIXELS, r.Bottom + JUMPPIXELS));
+                r.AddPixel(new PixelInfo(r.ChangeRect.Left - JUMPPIXELS, r.ChangeRect.Top - JUMPPIXELS, 0));
+                r.AddPixel(new PixelInfo(r.ChangeRect.Right + JUMPPIXELS, r.ChangeRect.Bottom + JUMPPIXELS, 0));
             }
 
             return new BitmapDiff(regions, b);
+        }
+
+        private static byte GetContrast(BitmapData data, int x, int y)
+        {
+            var a = GetPixelByte(data, x - 4, y - 4, PixelBytePart.Gray);
+            var b = GetPixelByte(data, x + 3, y + 3, PixelBytePart.Gray);
+            var c = GetPixelByte(data, x - 2, y + 2, PixelBytePart.Gray);
+            var d = GetPixelByte(data, x + 1, y - 1, PixelBytePart.Gray);
+            var e = GetPixelByte(data, x, y, PixelBytePart.Gray);
+
+            var min = Math.Min(a,
+                Math.Min(b,
+                Math.Min(c,
+                Math.Min(d, e))));
+
+            var max = Math.Max(a,
+                Math.Max(b,
+                Math.Max(c,
+                Math.Max(d, e))));
+
+            return (byte)(max - min);
+        }
+
+        unsafe private static byte GetPixelByte(BitmapData data, int x, int y, PixelBytePart part)
+        {
+            if (x < 0
+                || y < 0
+                || x >= data.Width
+                || y >= data.Height)
+            {
+                return 0;
+            }
+
+            // This assumes 32bpp BGR_
+            int PixelSize = 4;
+
+            var row = (byte*)data.Scan0 + (y * data.Stride);
+            var start = x * PixelSize;
+
+            if (part != PixelBytePart.Gray)
+            {
+                return row[start + (int)part];
+            }
+            else
+            {
+                // FROM: http://stackoverflow.com/questions/6251599/how-to-convert-pixel-formats-from-32bpprgb-to-16bpp-grayscale-in-c-sharp
+                return (byte)(row[start] * 0.11
+                    + row[start + 1] * 0.59
+                    + row[start + 2] * 0.3);
+            }
+        }
+
+        private enum PixelBytePart
+        {
+            Blue = 0,
+            Green = 1,
+            Red = 2,
+            Gray = 7
+        }
+    }
+
+    public class PixelInfo
+    {
+        public int X { get; private set; }
+        public int Y { get; private set; }
+        public byte Contrast { get; private set; }
+
+        public PixelInfo(int x, int y, byte contrast)
+        {
+            X = x;
+            Y = y;
+            Contrast = contrast;
         }
     }
 
     public class PixelRegion
     {
-        public List<Point> Positions { get; private set; }
+        public const byte HIGHCONTRASTLEVEL = 50;
 
-        public int Left { get; private set; }
-        public int Right { get; private set; }
-        public int Top { get; private set; }
-        public int Bottom { get; private set; }
+        public List<PixelInfo> Pixels { get; private set; }
 
-        public bool IsEmpty { get { return Left == int.MaxValue; } }
+        public Rectangle ChangeRect { get; private set; }
+        public Rectangle HighContrastRect { get; private set; }
 
-        public void AddPixel(Point position)
+        public bool IsEmpty { get { return ChangeRect.Width == 0; } }
+
+        public void AddPixel(PixelInfo pixel)
         {
-            Positions.Add(position);
+            Pixels.Add(pixel);
 
-            Left = Math.Min(Left, position.X);
-            Right = Math.Max(Right, position.X);
-            Top = Math.Min(Top, position.Y);
-            Bottom = Math.Max(Bottom, position.Y);
+            ChangeRect = ExtendRect(ChangeRect, pixel.X, pixel.Y);
+
+            if (pixel.Contrast >= HIGHCONTRASTLEVEL)
+            {
+                HighContrastRect = ExtendRect(HighContrastRect, pixel.X, pixel.Y);
+            }
+
         }
 
-        public bool IsNear(Point position, int distance)
+        private Rectangle ExtendRect(Rectangle r, int x, int y)
         {
-            if (Left == int.MaxValue)
+            if (r.Width == 0)
+            {
+                return new Rectangle(x, y, 1, 1);
+            }
+
+            var left = Math.Min(r.Left, x);
+            var right = Math.Max(r.Right, x);
+            var top = Math.Min(r.Top, y);
+            var bottom = Math.Max(r.Bottom, y);
+
+            return new Rectangle(left, top, right - left, bottom - top);
+        }
+
+        public bool IsNear(PixelInfo pixel, int distance)
+        {
+            if (ChangeRect.Width == 0)
             {
                 return true;
             }
 
-            return position.X > Left - distance
-                && position.X < Right + distance
-                && position.Y > Top - distance
-                && position.Y < Bottom + distance;
+            return pixel.X > ChangeRect.Left - distance
+                && pixel.X < ChangeRect.Right + distance
+                && pixel.Y > ChangeRect.Top - distance
+                && pixel.Y < ChangeRect.Bottom + distance;
         }
 
         public PixelRegion()
         {
-            Positions = new List<Point>();
-            Left = int.MaxValue;
-            Right = int.MinValue;
-            Top = int.MaxValue;
-            Bottom = int.MinValue;
+            Pixels = new List<PixelInfo>();
+            ChangeRect = new Rectangle();
+            HighContrastRect = new Rectangle();
         }
 
         public void Merge(PixelRegion cRegion)
         {
-            Positions.AddRange(cRegion.Positions);
+            Pixels.AddRange(cRegion.Pixels);
+            var highContrastPixels = Pixels.Where(p => p.Contrast >= HIGHCONTRASTLEVEL).ToList();
 
-            Left = Positions.Min(p => p.X);
-            Right = Positions.Min(p => p.Y);
-            Top = Positions.Max(p => p.X);
-            Bottom = Positions.Max(p => p.Y);
+            ChangeRect = ExtendRect(ChangeRect, Pixels.Min(p => p.X), Pixels.Min(p => p.Y));
+            ChangeRect = ExtendRect(ChangeRect, Pixels.Max(p => p.X), Pixels.Max(p => p.Y));
+
+            HighContrastRect = ExtendRect(ChangeRect, highContrastPixels.Min(p => p.X), highContrastPixels.Min(p => p.Y));
+            HighContrastRect = ExtendRect(ChangeRect, highContrastPixels.Max(p => p.X), highContrastPixels.Max(p => p.Y));
         }
     }
 
-    public class BitmapPart
-    {
-        public Bitmap Image
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-        }
+    //public class BitmapPart
+    //{
+    //    public Bitmap Image
+    //    {
+    //        get
+    //        {
+    //            throw new NotImplementedException();
+    //        }
+    //    }
 
-        public Point Position { get; set; }
-        public Size Size { get; set; }
-        public bool IsEmpty { get { return Size.Width <= 0 || Size.Height <= 0; } }
+    //    public Point Position { get; set; }
+    //    public Size Size { get; set; }
+    //    public bool IsEmpty { get { return Size.Width <= 0 || Size.Height <= 0; } }
 
-        public BitmapPart(Bitmap b, PixelRegion r)
-        {
-            if (r.IsEmpty)
-            {
-                Position = new Point();
-                Size = new Size();
+    //    public BitmapPart(Bitmap b, PixelRegion r)
+    //    {
+    //        if (r.IsEmpty)
+    //        {
+    //            Position = new Point();
+    //            Size = new Size();
 
-                return;
-            }
+    //            return;
+    //        }
 
-            var left = Math.Max(0, r.Left);
-            var top = Math.Max(0, r.Top);
-            var right = Math.Min(b.Width, r.Right);
-            var bottom = Math.Min(b.Height, r.Bottom);
+    //        var left = Math.Max(0, r.Left);
+    //        var top = Math.Max(0, r.Top);
+    //        var right = Math.Min(b.Width, r.Right);
+    //        var bottom = Math.Min(b.Height, r.Bottom);
 
-            Position = new Point(left, top);
-            Size = new Size(right - left, bottom - top);
+    //        Position = new Point(left, top);
+    //        Size = new Size(right - left, bottom - top);
 
-            //Image = b.Clone(new Rectangle(Position, Size), b.PixelFormat);
-        }
+    //        //Image = b.Clone(new Rectangle(Position, Size), b.PixelFormat);
+    //    }
 
-    }
+    //}
 
     public class BitmapDiff
     {
-        public List<BitmapPart> Parts { get; private set; }
+        public List<PixelRegion> Parts { get; private set; }
         public Point FocalPoint { get; private set; }
         public Rectangle ChangeBounds { get; set; }
 
@@ -256,7 +343,7 @@ namespace CodeCast
 
         public BitmapDiff(List<PixelRegion> regions, Bitmap b)
         {
-            var parts = regions.Where(r => !r.IsEmpty).Select(r => new BitmapPart(b, r)).ToList();
+            var parts = regions.Where(r => !r.IsEmpty).ToList();
 
             parts = parts.Where(p => !p.IsEmpty).ToList();
             Parts = parts;
@@ -283,7 +370,7 @@ namespace CodeCast
             //FocalPoint = new Point(ChangeBounds.Left + ChangeBounds.Width / 2, ChangeBounds.Top + ChangeBounds.Height / 2);
 
             // Focus on the average of the greatest distribution that will fit in the region
-            var allChangedPixels = regions.SelectMany(r => r.Positions).ToList();
+            var allChangedPixels = regions.SelectMany(r => r.Pixels).ToList();
             var xDist = GetDistribution(allChangedPixels.Select(p => p.X));
             var yDist = GetDistribution(allChangedPixels.Select(p => p.Y));
 

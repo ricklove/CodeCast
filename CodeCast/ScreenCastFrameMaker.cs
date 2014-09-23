@@ -14,11 +14,13 @@ namespace CodeCast
         private Rectangle _oldChangeBounds = new Rectangle();
 
         private Pen diffPen;
+        private Pen diffHighPen;
         private Pen zoomPen;
 
         public ScreenCastFrameMaker()
         {
             diffPen = new Pen(new SolidBrush(Color.FromArgb(50, 255, 0, 0)), 3);
+            diffHighPen = new Pen(new SolidBrush(Color.FromArgb(150, 0, 150, 0)), 3);
             zoomPen = new Pen(new SolidBrush(Color.FromArgb(255, 0, 0, 255)), 3);
         }
 
@@ -76,8 +78,6 @@ namespace CodeCast
             _oldChangeBounds = changeBounds;
 
 
-
-
             // Create frame
             var frame = new Bitmap(targetSize.Width, targetSize.Height);
 
@@ -88,11 +88,6 @@ namespace CodeCast
 
                 g.FillRectangle(Brushes.Black, 0, 0, frame.Width, frame.Height);
 
-                var diffRect = new Rectangle(
-                    diff.ChangeBounds.Left - 3,
-                    diff.ChangeBounds.Top - 3,
-                    diff.ChangeBounds.Width + 6,
-                    diff.ChangeBounds.Height + 6);
 
                 // Draw map (whole screen)
                 var mapTopLeft = new Point(wComment, 0);
@@ -128,34 +123,51 @@ namespace CodeCast
                 g.DrawImage(wholeScreen, bottomPartDestRect, bottomPartSourceRect, GraphicsUnit.Pixel);
 
 
-
-                // Draw diff on map
-                g.DrawRectangle(diffPen, ScaleRect(diffRect, mapScale, mapTopLeft));
-                // Zoom on map
+                // Draw Zoom on map
                 g.DrawRectangle(zoomPen, ScaleRect(middlePartSourceRect, mapScale, mapTopLeft));
                 g.DrawRectangle(zoomPen, ScaleRect(bottomPartSourceRect, mapScale, mapTopLeft));
 
-                // Diff on middle
-                g.DrawRectangle(diffPen, ClipToBounds(
-                    ScaleRect(new Rectangle(
-                            diffRect.X - middlePartSourceRect.X,
-                            diffRect.Y - middlePartSourceRect.Y,
-                            diffRect.Width,
-                            diffRect.Height
-                        ), middleScale, middleTopLeft),
-                    middlePartDestRect));
 
-                // Diff on bottom
-                g.DrawRectangle(diffPen, ClipToBounds(
-                    ScaleRect(new Rectangle(
-                            diffRect.X - bottomPartSourceRect.X,
-                            diffRect.Y - bottomPartSourceRect.Y,
-                            diffRect.Width,
-                            diffRect.Height
-                        ), bottomScale, bottomTopLeft),
-                    bottomPartDestRect));
+                foreach (var diffPart in diff.Parts)
+                {
+                    //var diffRect = new Rectangle(
+                    //   diff.ChangeBounds.Left - 3,
+                    //   diff.ChangeBounds.Top - 3,
+                    //   diff.ChangeBounds.Width + 6,
+                    //   diff.ChangeBounds.Height + 6);
 
+                    var r = diffPart.ChangeRect;
 
+                    var diffRect = new Rectangle(
+                        r.Left - 3,
+                        r.Top - 3,
+                        r.Width + 6,
+                        r.Height + 6
+                        );
+
+                    // Draw diff on map
+                    g.DrawRectangle(diffPen, ScaleRect(diffRect, mapScale, mapTopLeft));
+
+                    // Diff on middle
+                    g.DrawRectangle(diffPen, ClipToBounds(
+                        ScaleRect(new Rectangle(
+                                diffRect.X - middlePartSourceRect.X,
+                                diffRect.Y - middlePartSourceRect.Y,
+                                diffRect.Width,
+                                diffRect.Height
+                            ), middleScale, middleTopLeft),
+                        middlePartDestRect));
+
+                    // Diff on bottom
+                    g.DrawRectangle(diffPen, ClipToBounds(
+                        ScaleRect(new Rectangle(
+                                diffRect.X - bottomPartSourceRect.X,
+                                diffRect.Y - bottomPartSourceRect.Y,
+                                diffRect.Width,
+                                diffRect.Height
+                            ), bottomScale, bottomTopLeft),
+                        bottomPartDestRect));
+                }
 
                 // Draw comment
                 using (var fontToUse = new Font(font.FontFamily, (float)(font.Size * hScale)))
