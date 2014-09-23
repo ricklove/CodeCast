@@ -12,7 +12,7 @@ namespace CodeCast
     public static class ScreenCapture
     {
         // FROM: http://stackoverflow.com/questions/3072349/capture-screenshot-including-semitransparent-windows-in-net
-        public static BitmapWithRaw CaptureAllScreens()
+        public static Bitmap CaptureAllScreens()
         {
             Point posTopLeft = new Point(Screen.AllScreens.Min(s => s.Bounds.Left), Screen.AllScreens.Min(s => s.Bounds.Top));
             Point posBottomRight = new Point(Screen.AllScreens.Max(s => s.Bounds.Right), Screen.AllScreens.Max(s => s.Bounds.Bottom));
@@ -25,36 +25,12 @@ namespace CodeCast
             IntPtr hOldBmp = SelectObject(hDest, hBmp);
             bool b = BitBlt(hDest, 0, 0, sz.Width, sz.Height, hSrce, posTopLeft.X, posTopLeft.Y, CopyPixelOperation.SourceCopy | CopyPixelOperation.CaptureBlt);
             Bitmap bmp = Bitmap.FromHbitmap(hBmp);
+            SelectObject(hDest, hOldBmp);
+            DeleteObject(hBmp);
+            DeleteDC(hDest);
+            ReleaseDC(hDesk, hSrce);
 
-            return new BitmapWithRaw(bmp, hBmp, hOldBmp, hDest, hSrce);
-        }
-
-        public class BitmapWithRaw : IDisposable
-        {
-            public Bitmap Bitmap { get; private set; }
-            public IntPtr Hbitmap { get; private set; }
-            private IntPtr _hOldBmp;
-            private IntPtr _hDest;
-            private IntPtr _hSrce;
-
-            public BitmapWithRaw(Bitmap bitmap, IntPtr hbitmap, IntPtr hOldBmp, IntPtr hDest, IntPtr hSrce)
-            {
-                Hbitmap = hbitmap;
-                Bitmap = bitmap;
-
-                _hOldBmp = hOldBmp;
-                _hDest = hDest;
-                _hSrce = hSrce;
-            }
-
-            public void Dispose()
-            {
-                SelectObject(_hDest, _hOldBmp);
-                DeleteObject(Hbitmap);
-                DeleteDC(_hDest);
-                ReleaseDC(_hDest, _hSrce);
-                Bitmap.Dispose();
-            }
+            return bmp;
         }
 
         // P/Invoke declarations
