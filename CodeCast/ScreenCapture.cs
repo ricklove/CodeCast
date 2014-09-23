@@ -11,6 +11,38 @@ namespace CodeCast
 {
     public static class ScreenCapture
     {
+        public static Rectangle GetActiveWindowRectangle()
+        {
+            var window = GetActiveWindow();
+            var rect = new RECT();
+            GetWindowRect(window, out rect);
+
+            return new Rectangle(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
+        }
+
+        // FROM: http://stackoverflow.com/questions/5878963/getting-active-window-coordinates-and-height-width-in-c-sharp
+        public static IntPtr GetActiveWindow()
+        {
+            return GetForegroundWindow();
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left;        // x position of upper-left corner  
+            public int Top;         // y position of upper-left corner  
+            public int Right;       // x position of lower-right corner  
+            public int Bottom;      // y position of lower-right corner  
+        }
+
+
         // FROM: http://stackoverflow.com/questions/3072349/capture-screenshot-including-semitransparent-windows-in-net
         public static Bitmap CaptureAllScreens()
         {
@@ -35,25 +67,25 @@ namespace CodeCast
 
         // P/Invoke declarations
         [DllImport("gdi32.dll")]
-        static extern bool BitBlt(IntPtr hdcDest, int xDest, int yDest, int
+        private static extern bool BitBlt(IntPtr hdcDest, int xDest, int yDest, int
         wDest, int hDest, IntPtr hdcSource, int xSrc, int ySrc, CopyPixelOperation rop);
         [DllImport("user32.dll")]
-        static extern bool ReleaseDC(IntPtr hWnd, IntPtr hDc);
+        private static extern bool ReleaseDC(IntPtr hWnd, IntPtr hDc);
         [DllImport("gdi32.dll")]
-        static extern IntPtr DeleteDC(IntPtr hDc);
+        private static extern IntPtr DeleteDC(IntPtr hDc);
         [DllImport("gdi32.dll")]
-        static extern IntPtr DeleteObject(IntPtr hDc);
+        private static extern IntPtr DeleteObject(IntPtr hDc);
         [DllImport("gdi32.dll")]
-        static extern IntPtr CreateCompatibleBitmap(IntPtr hdc, int nWidth, int nHeight);
+        private static extern IntPtr CreateCompatibleBitmap(IntPtr hdc, int nWidth, int nHeight);
         [DllImport("gdi32.dll")]
-        static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+        private static extern IntPtr CreateCompatibleDC(IntPtr hdc);
         [DllImport("gdi32.dll")]
-        static extern IntPtr SelectObject(IntPtr hdc, IntPtr bmp);
+        private static extern IntPtr SelectObject(IntPtr hdc, IntPtr bmp);
         [DllImport("user32.dll")]
-        public static extern IntPtr GetDesktopWindow();
+        private static extern IntPtr GetDesktopWindow();
         [DllImport("user32.dll")]
-        public static extern IntPtr GetWindowDC(IntPtr ptr);
+        private static extern IntPtr GetWindowDC(IntPtr ptr);
     }
 
-    
+
 }

@@ -61,29 +61,16 @@ namespace CodeCast
             // Process differences
             if (lastBitmap != null)
             {
-                var diff = BitmapDifferences.GetDifferences(lastBitmap, bitmap);
+                var activeWindowRect = ScreenCapture.GetActiveWindowRectangle();
 
-                // Display differences
-                //lstDiffs.Controls.Clear();
+                var borderSize = 40;
+                var ignoreBorderRect = new Rectangle(
+                    activeWindowRect.Left + borderSize,
+                    activeWindowRect.Top + borderSize,
+                    activeWindowRect.Width - borderSize * 2,
+                    activeWindowRect.Height - borderSize * 2);
 
-                if (chkPreview.Checked)
-                {
-                    lstDiffs.View = View.LargeIcon;
-                    imgList.ImageSize = new Size(32, 32);
-                    lstDiffs.LargeImageList = imgList;
-
-                    diffs.Add(diff);
-
-                    throw new NotImplementedException();
-
-                    //imgList.Images.Add(d.Image);
-
-                    //foreach (var d in diff.Parts)
-                    //{
-
-                    //    lstDiffs.Items.Add(new ListViewItem() { ImageIndex = imgList.Images.Count - 1 });
-                    //}
-                }
+                var diff = BitmapDifferences.GetDifferences(lastBitmap, bitmap, ignoreBorderRect);
 
                 RecordFrame(bitmap, diff);
 
@@ -100,70 +87,73 @@ namespace CodeCast
             lastBitmap = bitmap;
         }
 
-        private void lstDiffs_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (lstDiffs.SelectedIndices.Count > 0)
-            {
-                var i = lstDiffs.SelectedIndices[0];
-
-                throw new NotImplementedException();
-
-                //if (i > 0 && parts.Count > i)
-                //{
-                //    picDiff.Image = parts[i].Image;
-                //    var wholeImage = ReconstructFromOrigin(i, false);
-                //    picPreview.Image = wholeImage;
-                //    picOutput.Image = ScreenCastFrameMaker.CreateFrame(new Size(480, 320), wholeImage, parts[i], "This is a test!");
-                //}
-            }
-
-        }
-
-        private Bitmap ReconstructFromOrigin(int iPart, bool shouldMarkDiffs = true)
-        {
-            throw new NotImplementedException();
-
-            //var copy = new Bitmap(origin);
-
-            //var pen = new Pen(Brushes.Red, 5);
-
-            //Graphics g = Graphics.FromImage(copy);
-            //g.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
-
-            //for (int i = 0; i <= iPart; i++)
-            //{
-            //    var p = parts[i];
-            //    g.DrawImage(p.Image, p.Position);
-
-            //    if (shouldMarkDiffs)
-            //    {
-            //        g.DrawRectangle(pen, new Rectangle(p.Position.X - 1, p.Position.Y - 1, p.Size.Width + 2, p.Size.Height + 2));
-            //    }
-            //}
-
-            //g.Dispose();
-
-            //return copy;
-
-        }
-
         private FrameRecorder _recorder;
+
+        //private Size frameSize = new Size(480, 320);
+        private Size frameSize = new Size(960, 640);
 
         private void btnSave_Click(object sender, EventArgs e)
         {
-            if (dlgSaveFile.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            if (btnSave.Text != "Stop")
             {
-                _recorder = new FrameRecorder(10, dlgSaveFile.FileName, 480, 320);
+                if (dlgSaveFile.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    var fps = 10;
+                    _recorder = new FrameRecorder(fps, dlgSaveFile.FileName, frameSize.Width, frameSize.Height);
+                    btnSave.Text = "Stop";
+                    chkEnabled.Checked = true;
+                }
+            }
+            else
+            {
+                btnSave.Text = "Record";
+                StopRecorder();
             }
         }
 
+        private ScreenCastFrameMaker _maker = new ScreenCastFrameMaker();
+
+        private Bitmap _lastFrame;
+
         private void RecordFrame(Bitmap bitmap, BitmapDiff diff)
         {
+            // If entering comment
+            Bitmap frame;
+            if (DateTime.Now < _timeAtTextChange + TimeSpan.FromSeconds(3))
+            {
+                frame = new Bitmap(frameSize.Width, frameSize.Height);
+                using (var g = Graphics.FromImage(frame))
+                {
+                    g.FillRectangle(Brushes.Black, 0, 0, frame.Width, frame.Height);
+
+                    var scale = 0.9 * frame.Width / txtComment.Width;
+                    using (var fontToUse = new Font(txtComment.Font.FontFamily, (float)(txtComment.Font.Size * scale)))
+                    {
+                        g.DrawString(txtComment.Text, fontToUse, Brushes.White, new Point(100, 100));
+                    }
+                }
+            }
+            else
+            {
+                frame = _maker.CreateFrame(frameSize, bitmap, diff, txtComment.Text, txtComment.Font);
+            }
+
+            if (chkPreview.Checked)
+            {
+                picOutput.Image = frame;
+            }
+
             if (_recorder != null)
             {
-                var frame = ScreenCastFrameMaker.CreateFrame(new Size(480, 320), bitmap, diff, "This is a test!");
                 _recorder.SaveFrame(frame);
             }
+
+            if (_lastFrame != null)
+            {
+                _lastFrame.Dispose();
+            }
+
+            _lastFrame = frame;
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -177,6 +167,23 @@ namespace CodeCast
             {
                 _recorder.Close();
                 _recorder = null;
+            }
+        }
+
+
+        private DateTime _timeAtTextChange = DateTime.MinValue;
+        private void txtComment_TextChanged(object sender, EventArgs e)
+        {
+            _timeAtTextChange = DateTime.Now;
+        }
+
+        private void chkPreview_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!chkPreview.Checked)
+            {
+                picOutput.Image = null;
+                picPreview.Image = null;
+
             }
         }
     }

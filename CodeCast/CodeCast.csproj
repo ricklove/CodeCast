@@ -59,6 +59,7 @@
   <ItemGroup>
     <Compile Include="BitmapDifferences.cs" />
     <Compile Include="FrameRecorder.cs" />
+    <Compile Include="GlobalInput.cs" />
     <Compile Include="ScreenCapture.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
