@@ -359,30 +359,25 @@ namespace CodeCast
 
             IsEmpty = false;
 
-            //var left = parts.Min(p => p.Position.X);
-            //var top = parts.Min(p => p.Position.Y);
-            //var right = parts.Max(p => p.Position.X + p.Size.Width);
-            //var bottom = parts.Max(p => p.Position.Y + p.Size.Height);
+            
+            //// Focus on the average of the greatest distribution that will fit in the region
+            //var allChangedPixels = regions.SelectMany(r => r.Pixels).ToList();
+            //var xDist = GetDistribution(allChangedPixels.Select(p => p.X));
+            //var yDist = GetDistribution(allChangedPixels.Select(p => p.Y));
 
-            //ChangeBounds = new Rectangle(left, top, right - left, bottom - top);
+            //FocalPoint = new Point(xDist.Val_50, yDist.Val_50);
+            //ChangeBounds = new Rectangle(xDist.Val_0, yDist.Val_0, xDist.Val_100, yDist.Val_100);
 
-            //// TODO: Determine a better focal point
-            //FocalPoint = new Point(ChangeBounds.Left + ChangeBounds.Width / 2, ChangeBounds.Top + ChangeBounds.Height / 2);
 
-            // Focus on the average of the greatest distribution that will fit in the region
-            var allChangedPixels = regions.SelectMany(r => r.Pixels).ToList();
-            var xDist = GetDistribution(allChangedPixels.Select(p => p.X));
-            var yDist = GetDistribution(allChangedPixels.Select(p => p.Y));
 
-            FocalPoint = new Point(xDist.Val_50, yDist.Val_50);
-            ChangeBounds = new Rectangle(xDist.Val_0, yDist.Val_0, xDist.Val_100, yDist.Val_100);
+            var left = parts.Min(p => p.HighContrastRect.Left);
+            var top = parts.Min(p => p.HighContrastRect.Top);
+            var right = parts.Max(p => p.HighContrastRect.Right);
+            var bottom = parts.Max(p => p.HighContrastRect.Bottom);
 
-            //var leftDist = GetDistribution(parts.Select(p => p.Position.X));
-            //var topDist = GetDistribution(parts.Select(p => p.Position.Y));
-            //var rightDist = GetDistribution(parts.Select(p => p.Position.X + p.Size.Width));
-            //var bottomDist = GetDistribution(parts.Select(p => p.Position.Y + p.Size.Height));
+            ChangeBounds = new Rectangle(left, top, right - left, bottom - top);
+            FocalPoint = new Point(ChangeBounds.Left, ChangeBounds.Top);
 
-            //FocalPoint = 
         }
 
 

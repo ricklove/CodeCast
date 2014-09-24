@@ -63,6 +63,7 @@ namespace CodeCast
                 //}
 
                 // Just make it top left
+                //focalPoint = new Point(diff.ChangeBounds.Left + 30, diff.ChangeBounds.Top + 30);
                 focalPoint = new Point(diff.ChangeBounds.Left + 30, diff.ChangeBounds.Top + 30);
 
                 // Override focal point with keyboard position
@@ -127,16 +128,14 @@ namespace CodeCast
                 g.DrawRectangle(zoomPen, ScaleRect(middlePartSourceRect, mapScale, mapTopLeft));
                 g.DrawRectangle(zoomPen, ScaleRect(bottomPartSourceRect, mapScale, mapTopLeft));
 
+                var diffsWithPens = diff.Parts.Select(p => new { rect = p.ChangeRect, pen = diffPen }).Union(
+                    diff.Parts.Select(p => new { rect = p.HighContrastRect, pen = diffHighPen })
+                    );
 
-                foreach (var diffPart in diff.Parts)
+                foreach (var diffPart in diffsWithPens)
                 {
-                    //var diffRect = new Rectangle(
-                    //   diff.ChangeBounds.Left - 3,
-                    //   diff.ChangeBounds.Top - 3,
-                    //   diff.ChangeBounds.Width + 6,
-                    //   diff.ChangeBounds.Height + 6);
-
-                    var r = diffPart.ChangeRect;
+                    var r = diffPart.rect;
+                    var pen = diffPart.pen;
 
                     var diffRect = new Rectangle(
                         r.Left - 3,
@@ -146,10 +145,10 @@ namespace CodeCast
                         );
 
                     // Draw diff on map
-                    g.DrawRectangle(diffPen, ScaleRect(diffRect, mapScale, mapTopLeft));
+                    g.DrawRectangle(pen, ScaleRect(diffRect, mapScale, mapTopLeft));
 
                     // Diff on middle
-                    g.DrawRectangle(diffPen, ClipToBounds(
+                    g.DrawRectangle(pen, ClipToBounds(
                         ScaleRect(new Rectangle(
                                 diffRect.X - middlePartSourceRect.X,
                                 diffRect.Y - middlePartSourceRect.Y,
@@ -159,7 +158,7 @@ namespace CodeCast
                         middlePartDestRect));
 
                     // Diff on bottom
-                    g.DrawRectangle(diffPen, ClipToBounds(
+                    g.DrawRectangle(pen, ClipToBounds(
                         ScaleRect(new Rectangle(
                                 diffRect.X - bottomPartSourceRect.X,
                                 diffRect.Y - bottomPartSourceRect.Y,
