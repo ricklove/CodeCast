@@ -16,6 +16,6 @@
 - X Draw High Contrast areas
 - X Don't join low and high contrast areas
 - X Test video size
+- X Zoom stretch changed areas within distorted image
 
-
-- Zoom stretch changed areas within distorted image
+- Increment center size to proportional multiple

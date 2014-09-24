@@ -20,6 +20,16 @@ namespace CodeCast
                 return null;
             }
 
+            // Round off changerects
+            var round = 60;
+
+            changeRects = changeRects.Select(r => new Rectangle(
+                round * (r.Left / round),
+                round * (r.Top / round),
+                round * (int)Math.Ceiling(1.0 * r.Width / round),
+                round * (int)Math.Ceiling(1.0 * r.Height / round)
+                )).ToList();
+
             // Join touching changeRects
             changeRects = JoinTouchingRects(changeRects);
 
@@ -37,11 +47,11 @@ namespace CodeCast
             GetPartitionLeaves(partitionsGroups, partitions);
 
             // DEBUG Draw partitions
-            var shouldDrawPartitions = true;
+            var shouldDrawPartitions = false;
             if (shouldDrawPartitions)
             {
-                var frame = new Bitmap(wholeScreen);
-                using (var g = Graphics.FromImage(frame))
+                var frameDebug = new Bitmap(wholeScreen);
+                using (var g = Graphics.FromImage(frameDebug))
                 {
                     foreach (var p in partitions)
                     {
@@ -50,14 +60,133 @@ namespace CodeCast
                     }
                 }
 
-                return frame;
+                return frameDebug;
             }
 
-            // TODO: Expand inside each partition (undistort items back to original aspect ratio)
+            // Expand inside each partition (undistort items back to original aspect ratio)
+            var frame = new Bitmap(wholeScreen.Width, wholeScreen.Height);
+            using (var g = Graphics.FromImage(frame))
+            {
+                foreach (var p in partitions)
+                {
+                    DrawPartition(g, p, wholeScreen);
+                }
+            }
 
-            //throw new NotImplementedException();
+            return frame;
+        }
 
-            return wholeScreen;
+        private void DrawPartition(Graphics g, RectPartition p, Bitmap image)
+        {
+            // Draw 9 (3x3) squares with middle stretched as much as possible
+            var sPadL = p.Item.Left - p.Whole.Left;
+            var sPadT = p.Item.Top - p.Whole.Top;
+            var sPadR = -p.Item.Right + p.Whole.Right;
+            var sPadB = -p.Item.Bottom + p.Whole.Bottom;
+
+            // TODO: Increment center size to proportional multiple
+
+            var dPadL = (int)(sPadL * 0.75f);
+            var dPadT = (int)(sPadT * 0.75f);
+            var dPadR = (int)(sPadR * 0.75f);
+            var dPadB = (int)(sPadB * 0.75f);
+
+            var sx = p.Whole.Left;
+            var sy = p.Whole.Top;
+
+            var dx = sx;
+            var dy = sy;
+
+            var sw0 = sPadL;
+            var sw1 = p.Item.Width;
+            var sw2 = sPadR;
+
+            var sx0 = sx;
+            var sx1 = sx0 + sw0;
+            var sx2 = sx1 + sw1;
+            var sx3 = sx2 + sw2;
+
+            var sh0 = sPadT;
+            var sh1 = p.Item.Height;
+            var sh2 = sPadB;
+
+            var sy0 = sy;
+            var sy1 = sy0 + sh0;
+            var sy2 = sy1 + sh1;
+            var sy3 = sy2 + sh2;
+
+            var dw0 = dPadL;
+            var dw1 = p.Whole.Width - (dPadL + dPadR);
+            var dw2 = dPadR;
+
+            var dx0 = dx;
+            var dx1 = dx0 + dw0;
+            var dx2 = dx1 + dw1;
+            var dx3 = dx2 + dw2;
+
+            var dh0 = dPadT;
+            var dh1 = p.Whole.Height - (dPadT + dPadB);
+            var dh2 = dPadB;
+
+            var dy0 = dy;
+            var dy1 = dy0 + dh0;
+            var dy2 = dy1 + dh1;
+            var dy3 = dy2 + dh2;
+
+
+            // TOP ROW
+            g.DrawImage(image,
+                new Rectangle(dx0, dy0, dw0, dh0),
+                new Rectangle(sx0, sy0, sw0, sh0),
+                GraphicsUnit.Pixel);
+
+            g.DrawImage(image,
+                new Rectangle(dx1, dy0, dw1, dh0),
+                new Rectangle(sx1, sy0, sw1, sh0),
+                GraphicsUnit.Pixel);
+
+            g.DrawImage(image,
+                new Rectangle(dx2, dy0, dw2, dh0),
+                new Rectangle(sx2, sy0, sw2, sh0),
+                GraphicsUnit.Pixel);
+
+
+            // MIDDLE ROW
+            g.DrawImage(image,
+                new Rectangle(dx0, dy1, dw0, dh1),
+                new Rectangle(sx0, sy1, sw0, sh1),
+                GraphicsUnit.Pixel);
+
+            // CENTER
+            g.DrawImage(image,
+                new Rectangle(dx1, dy1, dw1, dh1),
+                new Rectangle(sx1, sy1, sw1, sh1),
+                GraphicsUnit.Pixel);
+
+            g.DrawImage(image,
+                new Rectangle(dx2, dy1, dw2, dh1),
+                new Rectangle(sx2, sy1, sw2, sh1),
+                GraphicsUnit.Pixel);
+
+
+            // BOTTOM ROW
+            g.DrawImage(image,
+                new Rectangle(dx0, dy2, dw0, dh2),
+                new Rectangle(sx0, sy2, sw0, sh2),
+                GraphicsUnit.Pixel);
+
+            g.DrawImage(image,
+                new Rectangle(dx1, dy2, dw1, dh2),
+                new Rectangle(sx1, sy2, sw1, sh2),
+                GraphicsUnit.Pixel);
+
+            g.DrawImage(image,
+                new Rectangle(dx2, dy2, dw2, dh2),
+                new Rectangle(sx2, sy2, sw2, sh2),
+                GraphicsUnit.Pixel);
+
+            // Highlite center
+            g.DrawRectangle(diffHighPen, new Rectangle(dx1, dy1, dw1, dh1));
         }
 
         private static List<Rectangle> JoinTouchingRects(List<Rectangle> changeRects)
@@ -73,18 +202,62 @@ namespace CodeCast
 
                     if (a.IntersectsWith(b))
                     {
-                        var l = Math.Min(a.Left, b.Left);
-                        var t = Math.Min(a.Top, b.Top);
-                        var r = Math.Max(a.Right, b.Right);
-                        var bot = Math.Max(a.Bottom, b.Bottom);
-                        changeRects[i] = new Rectangle(l, t, r - l, bot - t);
+                        var joined = JoinRects(a, b);
+                        changeRects[i] = joined;
                         changeRects.RemoveAt(j);
-                        j--;
+
+                        // Start over
+                        i = -1;
+                        break;
                     }
                 }
             }
 
+            for (int i = 0; i < changeRects.Count; i++)
+            {
+                for (int j = i + 1; j < changeRects.Count; j++)
+                {
+                    var a = changeRects[i];
+                    var b = changeRects[j];
+
+                    if (a.IntersectsWith(b))
+                    {
+                        throw new Exception("LOGIC ERROR: Not joining all rects correctly");
+                    }
+
+                }
+
+            }
+
             return changeRects;
+        }
+
+        private static Rectangle JoinRects(List<Rectangle> rects)
+        {
+            if (rects.Count == 0)
+            {
+                throw new ArgumentException("Cannot join no rects");
+            }
+
+            // TODO: Just do min and max on each part
+            var r = rects.First();
+
+            foreach (var rNext in rects.Skip(1))
+            {
+                r = JoinRects(r, rNext);
+            }
+
+            return r;
+        }
+
+        private static Rectangle JoinRects(Rectangle a, Rectangle b)
+        {
+            var l = Math.Min(a.Left, b.Left);
+            var t = Math.Min(a.Top, b.Top);
+            var r = Math.Max(a.Right, b.Right);
+            var bot = Math.Max(a.Bottom, b.Bottom);
+            var joined = new Rectangle(l, t, r - l, bot - t);
+            return joined;
         }
 
         private void GetPartitionLeaves(RectPartition partition, List<RectPartition> leaves)
@@ -127,7 +300,8 @@ namespace CodeCast
 
             if (result == null)
             {
-                throw new Exception("LOGIC ERROR!");
+                // The pieces should join as one because they are blocking each other
+                return new RectPartition() { Item = JoinRects(items), Whole = whole };
             }
 
             return result;
