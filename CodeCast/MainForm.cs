@@ -160,7 +160,13 @@ namespace CodeCast
             }
             else
             {
-                frame = _maker.CreateFrame(frameSize, bitmap, diff, txtComment.Text, txtComment.Font);
+                //frame = _maker.CreateFrame(frameSize, bitmap, diff, txtComment.Text, txtComment.Font);
+                frame = _maker.CreateFrameZoomStretch(frameSize, bitmap, diff, txtComment.Text, txtComment.Font);
+
+                if (frame == null)
+                {
+                    frame = _lastFrame;
+                }
             }
 
             if (chkPreview.Checked)
@@ -177,7 +183,7 @@ namespace CodeCast
                 _recorder.SaveFrame(frame);
             }
 
-            if (_lastFrame != null)
+            if (_lastFrame != null && _lastFrame != frame)
             {
                 _lastFrame.Dispose();
             }

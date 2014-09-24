@@ -58,6 +58,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BitmapDifferences.cs" />
+    <Compile Include="ScreenCastFrameMaker_ZoomStretch.cs" />
     <Compile Include="FrameRecorder.cs" />
     <Compile Include="GlobalInput.cs" />
     <Compile Include="ScreenCapture.cs" />

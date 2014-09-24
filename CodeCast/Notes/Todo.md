@@ -14,12 +14,8 @@
 - X Identify low contrast areas
 - X Make sure the video is saved even if the program crashes (Save output pngs to a temp folder and delete after video is made?)
 - X Draw High Contrast areas
+- X Don't join low and high contrast areas
+- X Test video size
 
 
-
-- Don't join low and high contrast areas
-
-- Test video size
-
-
-Of course, you can change that!
+- Zoom stretch changed areas within distorted image

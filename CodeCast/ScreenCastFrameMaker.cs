@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace CodeCast
 {
-    class ScreenCastFrameMaker
+    partial class ScreenCastFrameMaker
     {
         private Point _oldFocalPoint = new Point();
         private Rectangle _oldChangeBounds = new Rectangle();
@@ -23,6 +23,8 @@ namespace CodeCast
             diffHighPen = new Pen(new SolidBrush(Color.FromArgb(150, 0, 150, 0)), 3);
             zoomPen = new Pen(new SolidBrush(Color.FromArgb(255, 0, 0, 255)), 3);
         }
+
+        
 
         public Bitmap CreateFrame(Size targetSize, Bitmap wholeScreen, BitmapDiff diff, string comment, Font font)
         {
@@ -51,29 +53,7 @@ namespace CodeCast
 
             // Get focal point
             var changeBounds = diff.ChangeBounds;
-            var focalPoint = _oldFocalPoint;
-
-            if (!diff.IsEmpty)
-            {
-                focalPoint = diff.FocalPoint;
-
-                //if (changeBounds.Contains(_oldFocalPoint))
-                //{
-                //    focalPoint = _oldFocalPoint;
-                //}
-
-                // Just make it top left
-                //focalPoint = new Point(diff.ChangeBounds.Left + 30, diff.ChangeBounds.Top + 30);
-                focalPoint = new Point(diff.ChangeBounds.Left + 30, diff.ChangeBounds.Top + 30);
-
-                // Override focal point with keyboard position
-                //focalPoint = GlobalInput.GetKeyboardCaretPosition();
-
-                // Round focalPoint
-                var ROUND = 16;
-                focalPoint = new Point(ROUND * (focalPoint.X / ROUND), ROUND * (focalPoint.Y / ROUND));
-
-            }
+            var focalPoint = GetFocalPoint(diff);
 
             _oldFocalPoint = focalPoint;
             _oldChangeBounds = changeBounds;
@@ -176,6 +156,34 @@ namespace CodeCast
             }
 
             return frame;
+        }
+
+        private Point GetFocalPoint(BitmapDiff diff)
+        {
+            var focalPoint = _oldFocalPoint;
+
+            if (!diff.IsEmpty)
+            {
+                focalPoint = diff.FocalPoint;
+
+                //if (changeBounds.Contains(_oldFocalPoint))
+                //{
+                //    focalPoint = _oldFocalPoint;
+                //}
+
+                // Just make it top left
+                //focalPoint = new Point(diff.ChangeBounds.Left + 30, diff.ChangeBounds.Top + 30);
+                focalPoint = new Point(diff.ChangeBounds.Left + 30, diff.ChangeBounds.Top + 30);
+
+                // Override focal point with keyboard position
+                //focalPoint = GlobalInput.GetKeyboardCaretPosition();
+
+                // Round focalPoint
+                var ROUND = 16;
+                focalPoint = new Point(ROUND * (focalPoint.X / ROUND), ROUND * (focalPoint.Y / ROUND));
+
+            }
+            return focalPoint;
         }
 
         private Rectangle MoveInsideBounds(Rectangle r, Rectangle bounds)
