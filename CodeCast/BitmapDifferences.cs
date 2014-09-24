@@ -99,7 +99,7 @@ namespace CodeCast
 
             foreach (var p in ordered)
             {
-                if (curRegion.IsNear(p, DISTANCE))
+                if (curRegion.IsNear(p, DISTANCE, true))
                 {
                     curRegion.AddPixel(p);
                 }
@@ -263,17 +263,27 @@ namespace CodeCast
             return new Rectangle(left, top, right - left, bottom - top);
         }
 
-        public bool IsNear(PixelInfo pixel, int distance)
+        public bool IsNear(PixelInfo pixel, int distance, bool shouldConsiderContrast)
         {
             if (ChangeRect.Width == 0)
             {
                 return true;
             }
 
-            return pixel.X > ChangeRect.Left - distance
-                && pixel.X < ChangeRect.Right + distance
-                && pixel.Y > ChangeRect.Top - distance
-                && pixel.Y < ChangeRect.Bottom + distance;
+            if (shouldConsiderContrast && pixel.Contrast > HIGHCONTRASTLEVEL)
+            {
+                return pixel.X > HighContrastRect.Left - distance
+                     && pixel.X < HighContrastRect.Right + distance
+                     && pixel.Y > HighContrastRect.Top - distance
+                     && pixel.Y < HighContrastRect.Bottom + distance;
+            }
+            else
+            {
+                return pixel.X > ChangeRect.Left - distance
+                    && pixel.X < ChangeRect.Right + distance
+                    && pixel.Y > ChangeRect.Top - distance
+                    && pixel.Y < ChangeRect.Bottom + distance;
+            }
         }
 
         public PixelRegion()
@@ -348,8 +358,10 @@ namespace CodeCast
             parts = parts.Where(p => !p.IsEmpty).ToList();
             Parts = parts;
 
+            var hcParts = parts.Where(p => p.HighContrastRect.Width > 0).ToList();
+
             // Calculate focal point
-            if (!parts.Any())
+            if (!hcParts.Any())
             {
                 ChangeBounds = new Rectangle();
                 FocalPoint = new Point();
@@ -369,11 +381,10 @@ namespace CodeCast
             //ChangeBounds = new Rectangle(xDist.Val_0, yDist.Val_0, xDist.Val_100, yDist.Val_100);
 
 
-
-            var left = parts.Min(p => p.HighContrastRect.Left);
-            var top = parts.Min(p => p.HighContrastRect.Top);
-            var right = parts.Max(p => p.HighContrastRect.Right);
-            var bottom = parts.Max(p => p.HighContrastRect.Bottom);
+            var left = hcParts.Min(p => p.HighContrastRect.Left);
+            var top = hcParts.Min(p => p.HighContrastRect.Top);
+            var right = hcParts.Max(p => p.HighContrastRect.Right);
+            var bottom = hcParts.Max(p => p.HighContrastRect.Bottom);
 
             ChangeBounds = new Rectangle(left, top, right - left, bottom - top);
             FocalPoint = new Point(ChangeBounds.Left, ChangeBounds.Top);
