@@ -12,11 +12,14 @@
 - X Test and improve memory use
 - X Identify what is causing it to lock up sometimes: Flushing the video stream was causing the problem
 - X Identify low contrast areas
+- X Make sure the video is saved even if the program crashes (Save output pngs to a temp folder and delete after video is made?)
+
+
 
 - Draw High Contrast areas
+- Don't join low and high contrast areas
 
 - Test video size
 
-- Make sure the video is saved even if the program crashes
 
 Of course, you can change that!

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -88,6 +89,7 @@ namespace CodeCast
         }
 
         private FrameRecorder _recorder;
+        private DirectoryInfo _backupDir;
 
         //private Size frameSize = new Size(480, 320);
         private Size frameSize = new Size(960, 640);
@@ -100,6 +102,22 @@ namespace CodeCast
                 {
                     var fps = 10;
                     _recorder = new FrameRecorder(fps, dlgSaveFile.FileName, frameSize.Width, frameSize.Height);
+
+                    var dir = dlgSaveFile.FileName + "_BACKUP";
+                    if (!Directory.Exists(dir))
+                    {
+                        _backupDir = Directory.CreateDirectory(dir);
+                    }
+                    else
+                    {
+                        _backupDir = new DirectoryInfo(dir);
+
+                        while (File.Exists(GetBackupFrameFilename()))
+                        {
+                            _nextFrameIndex++;
+                        }
+                    }
+
                     btnSave.Text = "Stop";
                     chkEnabled.Checked = true;
                 }
@@ -109,6 +127,13 @@ namespace CodeCast
                 btnSave.Text = "Record";
                 StopRecorder();
             }
+        }
+
+        private int _nextFrameIndex;
+
+        private string GetBackupFrameFilename()
+        {
+            return Path.Combine(_backupDir.FullName, "FRAME" + _nextFrameIndex + ".png");
         }
 
         private ScreenCastFrameMaker _maker = new ScreenCastFrameMaker();
@@ -145,6 +170,10 @@ namespace CodeCast
 
             if (_recorder != null)
             {
+                // Backup image
+                frame.Save(GetBackupFrameFilename(), System.Drawing.Imaging.ImageFormat.Png);
+                _nextFrameIndex++;
+
                 _recorder.SaveFrame(frame);
             }
 
@@ -167,6 +196,7 @@ namespace CodeCast
             {
                 _recorder.Close();
                 _recorder = null;
+                //_backupDir.Delete(true);
             }
         }
 
