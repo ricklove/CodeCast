@@ -112,28 +112,28 @@ namespace CodeCast
             }
 
             // Expand item to available space (in source and destination)
-            if (scale >= 2)
-            {
-                // TODO: Fix bug in this!
-                var nItemWidth = avWidth / scale;
-                var nItemHeight = avHeight / scale;
+            //if (scale >= 1)
+            //{
+            // TODO: Fix bug in this!
+            var nItemWidth = avWidth / scale;
+            var nItemHeight = avHeight / scale;
 
-                var exItemWidth = (int)(nItemWidth - itemRect.Width);
-                var exItemHeight = (int)(nItemHeight - itemRect.Height);
+            var exItemWidth = (int)(nItemWidth - itemRect.Width);
+            var exItemHeight = (int)(nItemHeight - itemRect.Height);
 
-                var nLeft = (int)Math.Max(0, itemRect.Left - exItemWidth * 0.5f);
-                var nTop = (int)Math.Max(0, itemRect.Top - exItemHeight * 0.5f);
-                var nRight = (int)Math.Min(p.Whole.Right, itemRect.Right + exItemWidth * 0.5f);
-                var nBottom = (int)Math.Min(p.Whole.Bottom, itemRect.Bottom + exItemHeight * 0.5f);
+            var nLeft = (int)Math.Max(0, itemRect.Left - exItemWidth * 0.5f);
+            var nTop = (int)Math.Max(0, itemRect.Top - exItemHeight * 0.5f);
+            var nRight = (int)Math.Min(p.Whole.Right, itemRect.Right + exItemWidth * 0.5f);
+            var nBottom = (int)Math.Min(p.Whole.Bottom, itemRect.Bottom + exItemHeight * 0.5f);
 
-                var nWidth = nRight - nLeft;
-                var nHeight = nBottom - nTop;
+            var nWidth = nRight - nLeft;
+            var nHeight = nBottom - nTop;
 
-                itemRect = new Rectangle(nLeft, nTop, nWidth, nHeight);
+            itemRect = new Rectangle(nLeft, nTop, nWidth, nHeight);
 
-                dItemWidth = (int)(itemRect.Width * scale);
-                dItemHeight = (int)(itemRect.Height * scale);
-            }
+            dItemWidth = (int)(itemRect.Width * scale);
+            dItemHeight = (int)(itemRect.Height * scale);
+            //}
 
             // Get values from partition
             var sWhole = p.Whole;
