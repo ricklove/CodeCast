@@ -154,7 +154,7 @@ namespace CodeCast
                     var scale = 0.9 * frame.Width / txtComment.Width;
                     using (var fontToUse = new Font(txtComment.Font.FontFamily, (float)(txtComment.Font.Size * scale)))
                     {
-                        g.DrawString(txtComment.Text, fontToUse, Brushes.White, new Point(100, 100));
+                        g.DrawString(txtComment.Text, fontToUse, Brushes.White, new Point(50, 50));
                     }
                 }
             }

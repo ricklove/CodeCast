@@ -15,6 +15,17 @@ namespace CodeCast
 
         public Bitmap CreateFrameZoomStretch(Size targetSize, Bitmap wholeScreen, BitmapDiff diff, string comment, Font font)
         {
+            var commentHeight = 120;
+
+            if (targetSize.Height < 400)
+            {
+                commentHeight = 60;
+            }
+
+            var destSize = new Rectangle(0, commentHeight, targetSize.Width, targetSize.Height - commentHeight);
+
+            // Draw frame
+
             // Divide the screen into splits for each change rect
             var changeRects = diff.Parts.Where(p => p.HighContrastRect.Width > 0).Select(p => p.HighContrastRect).ToList();
 
@@ -44,10 +55,8 @@ namespace CodeCast
             // Join touching changeRects
             changeRects = JoinTouchingRects(changeRects);
 
-            // TODO: Change to target coordinates first
-
             // Divide into partitions
-            var partitionsGroups = SubdivideIntoGroups(changeRects, new Rectangle(0, 0, wholeScreen.Width, wholeScreen.Height), new Rectangle(new Point(), targetSize));
+            var partitionsGroups = SubdivideIntoGroups(changeRects, new Rectangle(0, 0, wholeScreen.Width, wholeScreen.Height), destSize);
 
             if (partitionsGroups == null)
             {
@@ -57,30 +66,42 @@ namespace CodeCast
             List<RectPartition> partitions = new List<RectPartition>();
             GetPartitionLeaves(partitionsGroups, partitions);
 
-            // DEBUG Draw partitions
-            var shouldDrawPartitions = false;
-            if (shouldDrawPartitions)
-            {
-                var frameDebug = new Bitmap(wholeScreen);
-                using (var g = Graphics.FromImage(frameDebug))
-                {
-                    foreach (var p in partitions)
-                    {
-                        g.DrawRectangle(diffPen, p.Whole);
-                        g.DrawRectangle(diffHighPen, p.Item);
-                    }
-                }
+            //// DEBUG Draw partitions
+            //var shouldDrawPartitions = false;
+            //if (shouldDrawPartitions)
+            //{
+            //    var frameDebug = new Bitmap(wholeScreen);
+            //    using (var g = Graphics.FromImage(frameDebug))
+            //    {
 
-                return frameDebug;
-            }
+            //        foreach (var p in partitions)
+            //        {
+            //            g.DrawRectangle(diffPen, p.Whole);
+            //            g.DrawRectangle(diffHighPen, p.Item);
+            //        }
+
+
+            //    }
+
+            //    return frameDebug;
+            //}
 
             // Expand inside each partition (undistort items back to original aspect ratio)
             var frame = new Bitmap(targetSize.Width, targetSize.Height);
             using (var g = Graphics.FromImage(frame))
             {
+                g.FillRectangle(Brushes.Black, new Rectangle(new Point(), targetSize));
+
                 foreach (var p in partitions)
                 {
                     DrawPartition(g, p, wholeScreen);
+                }
+
+                // Draw comment
+                var hScale = commentHeight / 60;
+                using (var fontToUse = new Font(font.FontFamily, (float)(font.Size * hScale)))
+                {
+                    g.DrawString(comment, fontToUse, Brushes.White, 0, 0);
                 }
             }
 
@@ -112,28 +133,27 @@ namespace CodeCast
             }
 
             // Expand item to available space (in source and destination)
-            //if (scale >= 1)
-            //{
-            // TODO: Fix bug in this!
-            var nItemWidth = avWidth / scale;
-            var nItemHeight = avHeight / scale;
+            if (scale >= 1)
+            {
+                var nItemWidth = avWidth / scale;
+                var nItemHeight = avHeight / scale;
 
-            var exItemWidth = (int)(nItemWidth - itemRect.Width);
-            var exItemHeight = (int)(nItemHeight - itemRect.Height);
+                var exItemWidth = (int)(nItemWidth - itemRect.Width);
+                var exItemHeight = (int)(nItemHeight - itemRect.Height);
 
-            var nLeft = (int)Math.Max(0, itemRect.Left - exItemWidth * 0.5f);
-            var nTop = (int)Math.Max(0, itemRect.Top - exItemHeight * 0.5f);
-            var nRight = (int)Math.Min(p.Whole.Right, itemRect.Right + exItemWidth * 0.5f);
-            var nBottom = (int)Math.Min(p.Whole.Bottom, itemRect.Bottom + exItemHeight * 0.5f);
+                var nLeft = (int)Math.Max(0, itemRect.Left - exItemWidth * 0.5f);
+                var nTop = (int)Math.Max(0, itemRect.Top - exItemHeight * 0.5f);
+                var nRight = (int)Math.Min(p.Whole.Right, itemRect.Right + exItemWidth * 0.5f);
+                var nBottom = (int)Math.Min(p.Whole.Bottom, itemRect.Bottom + exItemHeight * 0.5f);
 
-            var nWidth = nRight - nLeft;
-            var nHeight = nBottom - nTop;
+                var nWidth = nRight - nLeft;
+                var nHeight = nBottom - nTop;
 
-            itemRect = new Rectangle(nLeft, nTop, nWidth, nHeight);
+                itemRect = new Rectangle(nLeft, nTop, nWidth, nHeight);
 
-            dItemWidth = (int)(itemRect.Width * scale);
-            dItemHeight = (int)(itemRect.Height * scale);
-            //}
+                dItemWidth = (int)(itemRect.Width * scale);
+                dItemHeight = (int)(itemRect.Height * scale);
+            }
 
             // Get values from partition
             var sWhole = p.Whole;
@@ -152,13 +172,13 @@ namespace CodeCast
 
             if (Math.Abs(1.0 * itemRect.Width / dItemWidth) - (1.0 * itemRect.Height / dItemHeight) > 0.0001)
             {
-                throw new ArgumentException("dItem ratio is not 1:1");
+                throw new ArgumentException("dItem ratio is not 1:1: " + (1.0 * itemRect.Width / dItemWidth) + ":" + (1.0 * itemRect.Height / dItemHeight));
             }
 
-            DrawPartitionInner(g, image, sWhole, dWhole, itemRect, dItemWidth, dItemHeight);
+            DrawPartitionInner(g, image, sWhole, dWhole, itemRect, p.Item, dItemWidth, dItemHeight);
         }
 
-        private void DrawPartitionInner(Graphics g, Bitmap image, Rectangle sWhole, Rectangle dWhole, Rectangle itemRect, int dItemWidth, int dItemHeight)
+        private void DrawPartitionInner(Graphics g, Bitmap image, Rectangle sWhole, Rectangle dWhole, Rectangle itemRect, Rectangle actualItemRect, int dItemWidth, int dItemHeight)
         {
             // Calculate the other figures
             var sPadL = itemRect.Left - sWhole.Left;
@@ -175,11 +195,11 @@ namespace CodeCast
             var dPadWidth = dWhole.Width - dItemWidth;
             var dPadHeight = dWhole.Height - dItemHeight;
 
-            var dScaleWidth = 1.0 * dPadWidth / sPadWidth;
-            var dScaleHeight = 1.0 * dPadHeight / sPadHeight;
+            var dScalePadWidth = 1.0 * dPadWidth / sPadWidth;
+            var dScalePadHeight = 1.0 * dPadHeight / sPadHeight;
 
-            var dPadL = (int)(sPadL * dScaleWidth);
-            var dPadT = (int)(sPadT * dScaleHeight);
+            var dPadL = (int)(sPadL * dScalePadWidth);
+            var dPadT = (int)(sPadT * dScalePadHeight);
             var dPadR = dPadWidth - dPadL;
             var dPadB = dPadHeight - dPadT;
 
@@ -259,7 +279,16 @@ namespace CodeCast
 
 
             // Highlite center
-            g.DrawRectangle(diffHighPen, new Rectangle(dx1, dy1, dw1, dh1));
+            g.DrawRectangle(diffPen, new Rectangle(dx1, dy1, dw1, dh1));
+
+            var dsWidthScale = 1.0 * dItemWidth / sItemWidth;
+            var dsHeightScale = 1.0 * dItemHeight / sItemHeight;
+            g.DrawRectangle(diffHighPen, new Rectangle(
+                dx1 + (int)((actualItemRect.Left - itemRect.Left) * dsWidthScale),
+                dy1 + (int)((actualItemRect.Top - itemRect.Top) * dsHeightScale),
+                (int)(actualItemRect.Width * dsWidthScale),
+                (int)(actualItemRect.Height * dsHeightScale)
+                ));
         }
 
         private static void DrawPart(Graphics g, Bitmap image, int sw, int sx, int dw, int dx, int sh, int sy, int dh, int dy)

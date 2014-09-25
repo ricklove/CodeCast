@@ -24,3 +24,7 @@
 
 - X Don't use old frame when no change is detected (because there may be a small change that is undetected)
 - X Fix bug in expansion logic
+
+- X Add a comment bar
+- X Highlight actual changes (instead of expansion)
+
