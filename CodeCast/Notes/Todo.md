@@ -17,5 +17,7 @@
 - X Don't join low and high contrast areas
 - X Test video size
 - X Zoom stretch changed areas within distorted image
+- X Expand item within target size using a multiple of 2
 
-- Increment center size to proportional multiple
+- Expand the item edges
+- Expand the item if there is plenty of space

@@ -36,7 +36,7 @@ namespace CodeCast
             // TODO: Change to target coordinates first
 
             // Divide into partitions
-            var partitionsGroups = SubdivideIntoGroups(changeRects, new Rectangle(0, 0, wholeScreen.Width, wholeScreen.Height));
+            var partitionsGroups = SubdivideIntoGroups(changeRects, new Rectangle(0, 0, wholeScreen.Width, wholeScreen.Height), new Rectangle(new Point(), targetSize));
 
             if (partitionsGroups == null)
             {
@@ -64,7 +64,7 @@ namespace CodeCast
             }
 
             // Expand inside each partition (undistort items back to original aspect ratio)
-            var frame = new Bitmap(wholeScreen.Width, wholeScreen.Height);
+            var frame = new Bitmap(targetSize.Width, targetSize.Height);
             using (var g = Graphics.FromImage(frame))
             {
                 foreach (var p in partitions)
@@ -78,24 +78,56 @@ namespace CodeCast
 
         private void DrawPartition(Graphics g, RectPartition p, Bitmap image)
         {
+            var MAXITEMRATIO = 0.8;
+
             // Draw 9 (3x3) squares with middle stretched as much as possible
             var sPadL = p.Item.Left - p.Whole.Left;
             var sPadT = p.Item.Top - p.Whole.Top;
             var sPadR = -p.Item.Right + p.Whole.Right;
             var sPadB = -p.Item.Bottom + p.Whole.Bottom;
 
-            // TODO: Increment center size to proportional multiple
+            var sPadWidth = sPadL + sPadR;
+            var sPadHeight = sPadT + sPadB;
 
-            var dPadL = (int)(sPadL * 0.75f);
-            var dPadT = (int)(sPadT * 0.75f);
-            var dPadR = (int)(sPadR * 0.75f);
-            var dPadB = (int)(sPadB * 0.75f);
+            // Get destination sizes
+            var scale = 2.0;
+            var dItemWidth = (int)(p.Item.Width * scale);
+            var dItemHeight = (int)(p.Item.Height * scale);
 
+            while (dItemWidth > p.WholeTarget.Width * MAXITEMRATIO
+                || dItemHeight > p.WholeTarget.Height * MAXITEMRATIO)
+            {
+                scale *= 0.5;
+
+                dItemWidth = (int)(p.Item.Width * scale);
+                dItemHeight = (int)(p.Item.Height * scale);
+            }
+
+            var dPadWidth = p.WholeTarget.Width - dItemWidth;
+            var dPadHeight = p.WholeTarget.Height - dItemHeight;
+
+            var dScaleWidth = 1.0 * dPadWidth / sPadWidth;
+            var dScaleHeight = 1.0 * dPadHeight / sPadHeight;
+
+            var dPadL = (int)(sPadL * dScaleWidth);
+            var dPadT = (int)(sPadT * dScaleHeight);
+            var dPadR = dPadWidth - dPadL;
+            var dPadB = dPadHeight - dPadT;
+
+            if (dPadL + dPadR + dItemWidth != p.WholeTarget.Width
+                || dPadT + dPadB + dItemHeight != p.WholeTarget.Height)
+            {
+                throw new Exception("LOGIC ERROR");
+            }
+
+
+            // Use the sizes
             var sx = p.Whole.Left;
             var sy = p.Whole.Top;
 
-            var dx = sx;
-            var dy = sy;
+            var dx = p.WholeTarget.Left;
+            var dy = p.WholeTarget.Top;
+
 
             var sw0 = sPadL;
             var sw1 = p.Item.Width;
@@ -115,8 +147,9 @@ namespace CodeCast
             var sy2 = sy1 + sh1;
             var sy3 = sy2 + sh2;
 
+
             var dw0 = dPadL;
-            var dw1 = p.Whole.Width - (dPadL + dPadR);
+            var dw1 = dItemWidth;
             var dw2 = dPadR;
 
             var dx0 = dx;
@@ -125,7 +158,7 @@ namespace CodeCast
             var dx3 = dx2 + dw2;
 
             var dh0 = dPadT;
-            var dh1 = p.Whole.Height - (dPadT + dPadB);
+            var dh1 = dItemHeight;
             var dh2 = dPadB;
 
             var dy0 = dy;
@@ -262,7 +295,7 @@ namespace CodeCast
 
         private void GetPartitionLeaves(RectPartition partition, List<RectPartition> leaves)
         {
-            if (partition.Item != null)
+            if (partition.IsLeaf)
             {
                 leaves.Add(partition);
             }
@@ -273,7 +306,7 @@ namespace CodeCast
             }
         }
 
-        private RectPartition SubdivideIntoGroups(List<Rectangle> items, Rectangle whole)
+        private RectPartition SubdivideIntoGroups(List<Rectangle> items, Rectangle whole, Rectangle wholeTarget)
         {
             // Binary space partition (using only horizontal and vertical divisions)
             // Recursive subdivision by hyperplanes (or lines in this case)
@@ -288,26 +321,26 @@ namespace CodeCast
 
             if (items.Count == 1)
             {
-                return new RectPartition() { Item = items.First(), Whole = whole };
+                return new RectPartition(items.First(), whole, wholeTarget);
             }
 
-            var result = SubdivideIntoGroups(items, whole, false);
+            var result = SubdivideIntoGroups(items, whole, wholeTarget, false);
 
             if (result == null)
             {
-                result = SubdivideIntoGroups(items, whole, true);
+                result = SubdivideIntoGroups(items, whole, wholeTarget, true);
             }
 
             if (result == null)
             {
                 // The pieces should join as one because they are blocking each other
-                return new RectPartition() { Item = JoinRects(items), Whole = whole };
+                return new RectPartition(JoinRects(items), whole, wholeTarget);
             }
 
             return result;
         }
 
-        private RectPartition SubdivideIntoGroups(List<Rectangle> items, Rectangle whole, bool useXAxis)
+        private RectPartition SubdivideIntoGroups(List<Rectangle> items, Rectangle whole, Rectangle wholeTarget, bool useXAxis)
         {
             if (items.Count == 1)
             {
@@ -376,30 +409,57 @@ namespace CodeCast
                     throw new Exception("LOGIC ERROR: Not subdividing correctly");
                 }
 
-                var massA = groupA.Sum(r => r.Width * r.Height);
-                var massB = groupB.Sum(r => r.Width * r.Height);
+                //var massA = groupA.Sum(r => r.Width * r.Height);
+                //var massB = groupB.Sum(r => r.Width * r.Height);
 
-                var midSize = (sideBStart - sideAEnd) * (massA / (massA + massB));
-                var mid = sideAEnd + midSize;
+                //var massARatio = 1.0 * massA / (massA + massB);
+                //var massBRatio = 1.0 * massB / (massA + massB);
+
+                var sideAStart = connected[0].a;
+                var mid = (int)(sideBStart + sideAEnd * 0.5);
+                var midSize = mid - sideAStart;
+
+
+                // Target size
+                var targetStart = useXAxis ? wholeTarget.Left : wholeTarget.Top;
+                var targetSize = useXAxis ? wholeTarget.Width : wholeTarget.Height;
+
+                var sizeA = connected[0].b - connected[0].a;
+                var sizeB = connected[1].b - connected[1].a;
+
+                var sizeARatio = 1.0 * sizeA / (sizeA + sizeB);
+                var sizeBRatio = 1.0 * sizeB / (sizeA + sizeB);
+
+                var tMidSize = (int)(targetSize * sizeARatio);
+                var tMid = targetStart + tMidSize;
+
 
                 Rectangle wholeA;
                 Rectangle wholeB;
+                Rectangle targetA;
+                Rectangle targetB;
 
                 if (useXAxis)
                 {
                     wholeA = new Rectangle(whole.Left, whole.Top, midSize, whole.Height);
                     wholeB = new Rectangle(mid, whole.Top, whole.Width - midSize, whole.Height);
+
+                    targetA = new Rectangle(wholeTarget.Left, wholeTarget.Top, tMidSize, wholeTarget.Height);
+                    targetB = new Rectangle(tMid, wholeTarget.Top, wholeTarget.Width - tMidSize, wholeTarget.Height);
                 }
                 else
                 {
                     wholeA = new Rectangle(whole.Left, whole.Top, whole.Width, midSize);
                     wholeB = new Rectangle(whole.Left, mid, whole.Width, whole.Height - midSize);
+
+                    targetA = new Rectangle(wholeTarget.Left, wholeTarget.Top, wholeTarget.Width, tMidSize);
+                    targetB = new Rectangle(wholeTarget.Left, tMid, wholeTarget.Width, wholeTarget.Height - tMidSize);
                 }
 
-                var sideA = SubdivideIntoGroups(groupA, wholeA);
-                var sideB = SubdivideIntoGroups(groupB, wholeB);
+                var sideA = SubdivideIntoGroups(groupA, wholeA, targetA);
+                var sideB = SubdivideIntoGroups(groupB, wholeB, targetB);
 
-                return new RectPartition() { Whole = whole, SideA = sideA, SideB = sideB };
+                return new RectPartition(sideA, sideB, whole, wholeTarget);
             }
             else
             {
@@ -409,11 +469,36 @@ namespace CodeCast
 
         public class RectPartition
         {
-            public Rectangle Item { get; set; }
-            public Rectangle Whole { get; set; }
+            public Rectangle Item { get; private set; }
+            public Rectangle Whole { get; private set; }
+            public Rectangle WholeTarget { get; private set; }
 
-            public RectPartition SideA { get; set; }
-            public RectPartition SideB { get; set; }
+            public RectPartition SideA { get; private set; }
+            public RectPartition SideB { get; private set; }
+
+            public bool IsLeaf { get { return SideA == null; } }
+
+
+            public RectPartition(Rectangle item, Rectangle whole, Rectangle wholeTarget)
+            {
+                SideA = null;
+                SideB = null;
+                Item = item;
+
+                Whole = whole;
+                WholeTarget = wholeTarget;
+            }
+
+            public RectPartition(RectPartition sideA, RectPartition sideB, Rectangle whole, Rectangle wholeTarget)
+            {
+                SideA = sideA;
+                SideB = sideB;
+                Item = new Rectangle();
+
+                Whole = whole;
+                WholeTarget = wholeTarget;
+            }
+
         }
     }
 }
