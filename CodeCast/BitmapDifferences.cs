@@ -101,12 +101,12 @@ namespace CodeCast
             {
                 if (curRegion.IsNear(p, DISTANCE, true))
                 {
-                    curRegion.AddPixel(p);
+                    curRegion.AddPixel(p, JUMPPIXELS);
                 }
                 else
                 {
                     curRegion = new PixelRegion();
-                    curRegion.AddPixel(p);
+                    curRegion.AddPixel(p, JUMPPIXELS);
                     regions.Add(curRegion);
                 }
             }
@@ -135,18 +135,6 @@ namespace CodeCast
 
             // Remove too small of changes
             //regions = regions.Where(r => r.Right - r.Left > MINCHANGESIZE || r.Bottom - r.Top > MINCHANGESIZE).ToList();
-
-            // Add JUMPPIXELS size border
-            foreach (var r in regions)
-            {
-                if (r.IsEmpty)
-                {
-                    continue;
-                }
-
-                r.AddPixel(new PixelInfo(r.ChangeRect.Left - JUMPPIXELS, r.ChangeRect.Top - JUMPPIXELS, 0));
-                r.AddPixel(new PixelInfo(r.ChangeRect.Right + JUMPPIXELS, r.ChangeRect.Bottom + JUMPPIXELS, 0));
-            }
 
             return new BitmapDiff(regions, b);
         }
@@ -235,30 +223,30 @@ namespace CodeCast
 
         public bool IsEmpty { get { return ChangeRect.Width == 0; } }
 
-        public void AddPixel(PixelInfo pixel)
+        public void AddPixel(PixelInfo pixel, int padding)
         {
             Pixels.Add(pixel);
 
-            ChangeRect = ExtendRect(ChangeRect, pixel.X, pixel.Y);
+            ChangeRect = ExtendRect(ChangeRect, pixel.X, pixel.Y, padding);
 
             if (pixel.Contrast >= HIGHCONTRASTLEVEL)
             {
-                HighContrastRect = ExtendRect(HighContrastRect, pixel.X, pixel.Y);
+                HighContrastRect = ExtendRect(HighContrastRect, pixel.X, pixel.Y, padding);
             }
 
         }
 
-        private Rectangle ExtendRect(Rectangle r, int x, int y)
+        private Rectangle ExtendRect(Rectangle r, int x, int y, int padding)
         {
             if (r.Width == 0)
             {
-                return new Rectangle(x, y, 1, 1);
+                return new Rectangle(x - padding, y - padding, 1 + padding * 2, 1 + padding * 2);
             }
 
-            var left = Math.Min(r.Left, x);
-            var right = Math.Max(r.Right, x);
-            var top = Math.Min(r.Top, y);
-            var bottom = Math.Max(r.Bottom, y);
+            var left = Math.Min(r.Left, x - padding);
+            var right = Math.Max(r.Right, x + padding);
+            var top = Math.Min(r.Top, y - padding);
+            var bottom = Math.Max(r.Bottom, y + padding);
 
             return new Rectangle(left, top, right - left, bottom - top);
         }
@@ -293,17 +281,17 @@ namespace CodeCast
             HighContrastRect = new Rectangle();
         }
 
-        public void Merge(PixelRegion cRegion)
-        {
-            Pixels.AddRange(cRegion.Pixels);
-            var highContrastPixels = Pixels.Where(p => p.Contrast >= HIGHCONTRASTLEVEL).ToList();
+        //public void Merge(PixelRegion cRegion)
+        //{
+        //    Pixels.AddRange(cRegion.Pixels);
+        //    var highContrastPixels = Pixels.Where(p => p.Contrast >= HIGHCONTRASTLEVEL).ToList();
 
-            ChangeRect = ExtendRect(ChangeRect, Pixels.Min(p => p.X), Pixels.Min(p => p.Y));
-            ChangeRect = ExtendRect(ChangeRect, Pixels.Max(p => p.X), Pixels.Max(p => p.Y));
+        //    ChangeRect = ExtendRect(ChangeRect, Pixels.Min(p => p.X), Pixels.Min(p => p.Y));
+        //    ChangeRect = ExtendRect(ChangeRect, Pixels.Max(p => p.X), Pixels.Max(p => p.Y));
 
-            HighContrastRect = ExtendRect(ChangeRect, highContrastPixels.Min(p => p.X), highContrastPixels.Min(p => p.Y));
-            HighContrastRect = ExtendRect(ChangeRect, highContrastPixels.Max(p => p.X), highContrastPixels.Max(p => p.Y));
-        }
+        //    HighContrastRect = ExtendRect(ChangeRect, highContrastPixels.Min(p => p.X), highContrastPixels.Min(p => p.Y));
+        //    HighContrastRect = ExtendRect(ChangeRect, highContrastPixels.Max(p => p.X), highContrastPixels.Max(p => p.Y));
+        //}
     }
 
     //public class BitmapPart
@@ -371,7 +359,7 @@ namespace CodeCast
 
             IsEmpty = false;
 
-            
+
             //// Focus on the average of the greatest distribution that will fit in the region
             //var allChangedPixels = regions.SelectMany(r => r.Pixels).ToList();
             //var xDist = GetDistribution(allChangedPixels.Select(p => p.X));

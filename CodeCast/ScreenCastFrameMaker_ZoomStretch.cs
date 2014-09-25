@@ -10,15 +10,26 @@ namespace CodeCast
 {
     partial class ScreenCastFrameMaker
     {
+
+        private List<Rectangle> _lastChangeRects = new List<Rectangle>();
+
         public Bitmap CreateFrameZoomStretch(Size targetSize, Bitmap wholeScreen, BitmapDiff diff, string comment, Font font)
         {
             // Divide the screen into splits for each change rect
             var changeRects = diff.Parts.Where(p => p.HighContrastRect.Width > 0).Select(p => p.HighContrastRect).ToList();
 
+            // Use last change rects if empty
+            if (!changeRects.Any())
+            {
+                changeRects = _lastChangeRects;
+            }
+
             if (!changeRects.Any())
             {
                 return null;
             }
+
+            _lastChangeRects = changeRects;
 
             // Round off changerects
             var round = 60;
@@ -78,33 +89,91 @@ namespace CodeCast
 
         private void DrawPartition(Graphics g, RectPartition p, Bitmap image)
         {
-            var MAXITEMRATIO = 0.8;
+            var MAXITEMRATIO = 0.75;
+
+            var avWidth = p.WholeTarget.Width * MAXITEMRATIO;
+            var avHeight = p.WholeTarget.Height * MAXITEMRATIO;
 
             // Draw 9 (3x3) squares with middle stretched as much as possible
-            var sPadL = p.Item.Left - p.Whole.Left;
-            var sPadT = p.Item.Top - p.Whole.Top;
-            var sPadR = -p.Item.Right + p.Whole.Right;
-            var sPadB = -p.Item.Bottom + p.Whole.Bottom;
-
-            var sPadWidth = sPadL + sPadR;
-            var sPadHeight = sPadT + sPadB;
+            var itemRect = p.Item;
 
             // Get destination sizes
             var scale = 2.0;
-            var dItemWidth = (int)(p.Item.Width * scale);
-            var dItemHeight = (int)(p.Item.Height * scale);
+            var dItemWidth = (int)(itemRect.Width * scale);
+            var dItemHeight = (int)(itemRect.Height * scale);
 
-            while (dItemWidth > p.WholeTarget.Width * MAXITEMRATIO
-                || dItemHeight > p.WholeTarget.Height * MAXITEMRATIO)
+            while (dItemWidth > avWidth
+                || dItemHeight > avHeight)
             {
                 scale *= 0.5;
 
-                dItemWidth = (int)(p.Item.Width * scale);
-                dItemHeight = (int)(p.Item.Height * scale);
+                dItemWidth = (int)(itemRect.Width * scale);
+                dItemHeight = (int)(itemRect.Height * scale);
             }
 
-            var dPadWidth = p.WholeTarget.Width - dItemWidth;
-            var dPadHeight = p.WholeTarget.Height - dItemHeight;
+            // Expand item to available space (in source and destination)
+            if (scale >= 2)
+            {
+                // TODO: Fix bug in this!
+                var nItemWidth = avWidth / scale;
+                var nItemHeight = avHeight / scale;
+
+                var exItemWidth = (int)(nItemWidth - itemRect.Width);
+                var exItemHeight = (int)(nItemHeight - itemRect.Height);
+
+                var nLeft = (int)Math.Max(0, itemRect.Left - exItemWidth * 0.5f);
+                var nTop = (int)Math.Max(0, itemRect.Top - exItemHeight * 0.5f);
+                var nRight = (int)Math.Min(p.Whole.Right, itemRect.Right + exItemWidth * 0.5f);
+                var nBottom = (int)Math.Min(p.Whole.Bottom, itemRect.Bottom + exItemHeight * 0.5f);
+
+                var nWidth = nRight - nLeft;
+                var nHeight = nBottom - nTop;
+
+                itemRect = new Rectangle(nLeft, nTop, nWidth, nHeight);
+
+                dItemWidth = (int)(itemRect.Width * scale);
+                dItemHeight = (int)(itemRect.Height * scale);
+            }
+
+            // Get values from partition
+            var sWhole = p.Whole;
+            var dWhole = p.WholeTarget;
+
+            // Verify some logic
+            if (dItemHeight < 0 || dItemWidth < 0)
+            {
+                throw new ArgumentException("Item size cannot be negative!");
+            }
+
+            if (itemRect.Width >= sWhole.Width || itemRect.Height >= sWhole.Height)
+            {
+                throw new ArgumentException("Item size cannot be as large as source!");
+            }
+
+            if (Math.Abs(1.0 * itemRect.Width / dItemWidth) - (1.0 * itemRect.Height / dItemHeight) > 0.0001)
+            {
+                throw new ArgumentException("dItem ratio is not 1:1");
+            }
+
+            DrawPartitionInner(g, image, sWhole, dWhole, itemRect, dItemWidth, dItemHeight);
+        }
+
+        private void DrawPartitionInner(Graphics g, Bitmap image, Rectangle sWhole, Rectangle dWhole, Rectangle itemRect, int dItemWidth, int dItemHeight)
+        {
+            // Calculate the other figures
+            var sPadL = itemRect.Left - sWhole.Left;
+            var sPadT = itemRect.Top - sWhole.Top;
+            var sPadR = -itemRect.Right + sWhole.Right;
+            var sPadB = -itemRect.Bottom + sWhole.Bottom;
+
+            var sPadWidth = sPadL + sPadR;
+            var sPadHeight = sPadT + sPadB;
+            var sItemWidth = itemRect.Width;
+            var sItemHeight = itemRect.Height;
+
+
+            var dPadWidth = dWhole.Width - dItemWidth;
+            var dPadHeight = dWhole.Height - dItemHeight;
 
             var dScaleWidth = 1.0 * dPadWidth / sPadWidth;
             var dScaleHeight = 1.0 * dPadHeight / sPadHeight;
@@ -114,23 +183,21 @@ namespace CodeCast
             var dPadR = dPadWidth - dPadL;
             var dPadB = dPadHeight - dPadT;
 
-            if (dPadL + dPadR + dItemWidth != p.WholeTarget.Width
-                || dPadT + dPadB + dItemHeight != p.WholeTarget.Height)
+            if (dPadL + dPadR + dItemWidth != dWhole.Width
+                || dPadT + dPadB + dItemHeight != dWhole.Height)
             {
                 throw new Exception("LOGIC ERROR");
             }
 
 
-            // Use the sizes
-            var sx = p.Whole.Left;
-            var sy = p.Whole.Top;
+            var sx = sWhole.Left;
+            var sy = sWhole.Top;
 
-            var dx = p.WholeTarget.Left;
-            var dy = p.WholeTarget.Top;
-
+            var dx = dWhole.Left;
+            var dy = dWhole.Top;
 
             var sw0 = sPadL;
-            var sw1 = p.Item.Width;
+            var sw1 = sItemWidth;
             var sw2 = sPadR;
 
             var sx0 = sx;
@@ -139,7 +206,7 @@ namespace CodeCast
             var sx3 = sx2 + sw2;
 
             var sh0 = sPadT;
-            var sh1 = p.Item.Height;
+            var sh1 = sItemHeight;
             var sh2 = sPadB;
 
             var sy0 = sy;
@@ -167,59 +234,53 @@ namespace CodeCast
             var dy3 = dy2 + dh2;
 
 
-            // TOP ROW
-            g.DrawImage(image,
-                new Rectangle(dx0, dy0, dw0, dh0),
-                new Rectangle(sx0, sy0, sw0, sh0),
-                GraphicsUnit.Pixel);
+            if (sw0 + sw1 + sw2 != sWhole.Width
+                || sh0 + sh1 + sh2 != sWhole.Height
+                || dw0 + dw1 + dw2 != dWhole.Width
+                || dh0 + dh1 + dh2 != dWhole.Height)
+            {
+                throw new Exception("LOGIC ERROR");
+            }
 
-            g.DrawImage(image,
-                new Rectangle(dx1, dy0, dw1, dh0),
-                new Rectangle(sx1, sy0, sw1, sh0),
-                GraphicsUnit.Pixel);
+            // Top Row
+            DrawPart(g, image, sw0, sx0, dw0, dx0, sh0, sy0, dh0, dy0);
+            DrawPart(g, image, sw1, sx1, dw1, dx1, sh0, sy0, dh0, dy0);
+            DrawPart(g, image, sw2, sx2, dw2, dx2, sh0, sy0, dh0, dy0);
 
-            g.DrawImage(image,
-                new Rectangle(dx2, dy0, dw2, dh0),
-                new Rectangle(sx2, sy0, sw2, sh0),
-                GraphicsUnit.Pixel);
+            // Middle Row
+            DrawPart(g, image, sw0, sx0, dw0, dx0, sh1, sy1, dh1, dy1);
+            DrawPart(g, image, sw1, sx1, dw1, dx1, sh1, sy1, dh1, dy1);
+            DrawPart(g, image, sw2, sx2, dw2, dx2, sh1, sy1, dh1, dy1);
 
+            // Bottom Row
+            DrawPart(g, image, sw0, sx0, dw0, dx0, sh2, sy2, dh2, dy2);
+            DrawPart(g, image, sw1, sx1, dw1, dx1, sh2, sy2, dh2, dy2);
+            DrawPart(g, image, sw2, sx2, dw2, dx2, sh2, sy2, dh2, dy2);
 
-            // MIDDLE ROW
-            g.DrawImage(image,
-                new Rectangle(dx0, dy1, dw0, dh1),
-                new Rectangle(sx0, sy1, sw0, sh1),
-                GraphicsUnit.Pixel);
-
-            // CENTER
-            g.DrawImage(image,
-                new Rectangle(dx1, dy1, dw1, dh1),
-                new Rectangle(sx1, sy1, sw1, sh1),
-                GraphicsUnit.Pixel);
-
-            g.DrawImage(image,
-                new Rectangle(dx2, dy1, dw2, dh1),
-                new Rectangle(sx2, sy1, sw2, sh1),
-                GraphicsUnit.Pixel);
-
-
-            // BOTTOM ROW
-            g.DrawImage(image,
-                new Rectangle(dx0, dy2, dw0, dh2),
-                new Rectangle(sx0, sy2, sw0, sh2),
-                GraphicsUnit.Pixel);
-
-            g.DrawImage(image,
-                new Rectangle(dx1, dy2, dw1, dh2),
-                new Rectangle(sx1, sy2, sw1, sh2),
-                GraphicsUnit.Pixel);
-
-            g.DrawImage(image,
-                new Rectangle(dx2, dy2, dw2, dh2),
-                new Rectangle(sx2, sy2, sw2, sh2),
-                GraphicsUnit.Pixel);
 
             // Highlite center
             g.DrawRectangle(diffHighPen, new Rectangle(dx1, dy1, dw1, dh1));
+        }
+
+        private static void DrawPart(Graphics g, Bitmap image, int sw, int sx, int dw, int dx, int sh, int sy, int dh, int dy)
+        {
+            if (sw == 0 && sw != dw)
+            {
+                throw new ArgumentException("Edges must be 0 together");
+            }
+
+            if (sh == 0 && sh != dh)
+            {
+                throw new ArgumentException("Edges must be 0 together");
+            }
+
+            if (sw > 0 && sh > 0)
+            {
+                g.DrawImage(image,
+                    new Rectangle(dx, dy, dw, dh),
+                    new Rectangle(sx, sy, sw, sh),
+                    GraphicsUnit.Pixel);
+            }
         }
 
         private static List<Rectangle> JoinTouchingRects(List<Rectangle> changeRects)

@@ -19,5 +19,8 @@
 - X Zoom stretch changed areas within distorted image
 - X Expand item within target size using a multiple of 2
 
-- Expand the item edges
-- Expand the item if there is plenty of space
+- X Expand the item edges
+- X Expand the item if there is plenty of space
+
+- X Don't use old frame when no change is detected (because there may be a small change that is undetected)
+- X Fix bug in expansion logic
