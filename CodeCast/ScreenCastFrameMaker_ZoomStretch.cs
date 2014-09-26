@@ -15,6 +15,19 @@ namespace CodeCast
 
         public Bitmap CreateFrameZoomStretch(Size targetSize, Bitmap wholeScreen, BitmapDiff diff, string comment, Font font, Image avatar)
         {
+            // Don't let a random BUG crash the program
+            try
+            {
+                return CreateFrameZoomStretchInner(targetSize, wholeScreen, diff, comment, font, avatar);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public Bitmap CreateFrameZoomStretchInner(Size targetSize, Bitmap wholeScreen, BitmapDiff diff, string comment, Font font, Image avatar)
+        {
             var commentHeight = 120;
 
             if (targetSize.Height < 400)
@@ -121,7 +134,7 @@ namespace CodeCast
                     {
                         avatarWidth = commentHeight;
 
-                        g.DrawImage(avatar, new Rectangle(new Point(), new Size(avatarWidth, commentHeight))); 
+                        g.DrawImage(avatar, new Rectangle(new Point(), new Size(avatarWidth, commentHeight)));
                     }
 
                     using (var fontToUse = new Font(font.FontFamily, (float)(font.Size * hScale)))
@@ -445,6 +458,12 @@ namespace CodeCast
                 throw new ArgumentException("Items must be inside paritition");
             }
 
+            if (wholeTarget.Height < 0 ||
+                wholeTarget.Width < 0)
+            {
+                throw new Exception("WholeTarget must have a size");
+            }
+
 
 
             var result = SubdivideIntoGroupsInner(items, whole, wholeTarget);
@@ -453,6 +472,12 @@ namespace CodeCast
 
             if (result.Whole.Height < 0 ||
                 result.Whole.Width < 0)
+            {
+                throw new Exception("LOGIC ERROR: Partition must have a size");
+            }
+
+            if (result.WholeTarget.Height < 0 ||
+                result.WholeTarget.Width < 0)
             {
                 throw new Exception("LOGIC ERROR: Partition must have a size");
             }

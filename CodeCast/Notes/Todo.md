@@ -33,3 +33,4 @@
 
 - X Add avatar
 
+- FIX: TargetSize is becomming negative
