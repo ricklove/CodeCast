@@ -151,17 +151,20 @@ namespace CodeCast
                 {
                     g.FillRectangle(Brushes.Black, 0, 0, frame.Width, frame.Height);
 
-                    var scale = 0.9 * frame.Width / txtComment.Width;
+                    var scale = 0.8 * frame.Width / txtComment.Width;
                     using (var fontToUse = new Font(txtComment.Font.FontFamily, (float)(txtComment.Font.Size * scale)))
                     {
-                        g.DrawString(txtComment.Text, fontToUse, Brushes.White, new Point(50, 50));
+                        g.DrawString(txtComment.Text, fontToUse, Brushes.White, new Point(100, 50));
                     }
+
+                    var avatar = GetAvatarFromText(txtComment.Text);
+                    g.DrawImage(avatar, new Rectangle(10, 50, 64, 64));
                 }
             }
             else
             {
                 //frame = _maker.CreateFrame(frameSize, bitmap, diff, txtComment.Text, txtComment.Font);
-                frame = _maker.CreateFrameZoomStretch(frameSize, bitmap, diff, txtComment.Text, txtComment.Font);
+                frame = _maker.CreateFrameZoomStretch(frameSize, bitmap, diff, txtComment.Text, txtComment.Font, GetAvatarFromText(txtComment.Text));
 
                 if (frame == null)
                 {
@@ -190,6 +193,8 @@ namespace CodeCast
 
             _lastFrame = frame;
         }
+
+  
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
@@ -222,5 +227,49 @@ namespace CodeCast
 
             }
         }
+
+        private AvatarChooser _avatarChooser = new AvatarChooser();
+
+        private void btnChooseAvatars_Click(object sender, EventArgs e)
+        {
+            _avatarChooser.Show();
+            _avatarChooser.FormClosing += (object s, FormClosingEventArgs eIner) =>
+            {
+                _avatarChooser.Hide();
+                eIner.Cancel = true;
+            };
+        }
+
+        private Image GetAvatar(AvatarType type)
+        {
+            return _avatarChooser.GetAvatar(type);
+        }
+
+        private Image GetAvatarFromText(string text)
+        {
+            if (text.Contains(":-)")
+                || text.Contains(":)"))
+            {
+                return GetAvatar(AvatarType.Happy);
+            }
+            else if (text.Contains(":-(")
+                || text.Contains(":("))
+            {
+                return GetAvatar(AvatarType.Sad);
+            }
+            else if (text.Contains("?"))
+            {
+                return GetAvatar(AvatarType.Question);
+            }
+            else if (text.Contains("!"))
+            {
+                return GetAvatar(AvatarType.Exclaim);
+            }
+            else 
+            {
+                return GetAvatar(AvatarType.Normal);
+            }
+        }
+
     }
 }

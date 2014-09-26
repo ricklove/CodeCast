@@ -31,3 +31,5 @@
 - X FIX: Item outside of partition (Record video causes it)
 - X Allow better zooming (1.5x etc.)
 
+- X Add avatar
+

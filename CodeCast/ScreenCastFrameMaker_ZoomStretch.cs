@@ -13,13 +13,18 @@ namespace CodeCast
 
         private List<Rectangle> _lastChangeRects = new List<Rectangle>();
 
-        public Bitmap CreateFrameZoomStretch(Size targetSize, Bitmap wholeScreen, BitmapDiff diff, string comment, Font font)
+        public Bitmap CreateFrameZoomStretch(Size targetSize, Bitmap wholeScreen, BitmapDiff diff, string comment, Font font, Image avatar)
         {
             var commentHeight = 120;
 
             if (targetSize.Height < 400)
             {
                 commentHeight = 60;
+            }
+
+            if (string.IsNullOrEmpty(comment))
+            {
+                commentHeight = 0;
             }
 
             var destSize = new Rectangle(0, commentHeight, targetSize.Width, targetSize.Height - commentHeight);
@@ -106,10 +111,25 @@ namespace CodeCast
                 }
 
                 // Draw comment
-                var hScale = commentHeight / 60;
-                using (var fontToUse = new Font(font.FontFamily, (float)(font.Size * hScale)))
+                if (commentHeight > 0)
                 {
-                    g.DrawString(comment, fontToUse, Brushes.White, 0, 0);
+                    var hScale = commentHeight / 60;
+
+                    var avatarWidth = 0;
+
+                    if (avatar != null)
+                    {
+                        avatarWidth = commentHeight;
+
+                        g.DrawImage(avatar, new Rectangle(new Point(), new Size(avatarWidth, commentHeight))); 
+                    }
+
+                    using (var fontToUse = new Font(font.FontFamily, (float)(font.Size * hScale)))
+                    {
+                        g.DrawString(comment, fontToUse, Brushes.White, avatarWidth, 0);
+                    }
+
+
                 }
             }
 

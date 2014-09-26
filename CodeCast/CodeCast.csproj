@@ -57,6 +57,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AvatarChooser.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AvatarChooser.Designer.cs">
+      <DependentUpon>AvatarChooser.cs</DependentUpon>
+    </Compile>
     <Compile Include="BitmapDifferences.cs" />
     <Compile Include="ScreenCastFrameMaker_ZoomStretch.cs" />
     <Compile Include="FrameRecorder.cs" />
@@ -71,6 +77,9 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ScreenCastFrameMaker.cs" />
+    <EmbeddedResource Include="AvatarChooser.resx">
+      <DependentUpon>AvatarChooser.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>

@@ -41,6 +41,7 @@
             this.btnSave = new System.Windows.Forms.Button();
             this.txtComment = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
+            this.btnChooseAvatars = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.picPreview)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.picOutput)).BeginInit();
             this.SuspendLayout();
@@ -170,11 +171,22 @@
             this.label1.TabIndex = 10;
             this.label1.Text = "Comment";
             // 
+            // btnChooseAvatars
+            // 
+            this.btnChooseAvatars.Location = new System.Drawing.Point(331, 41);
+            this.btnChooseAvatars.Name = "btnChooseAvatars";
+            this.btnChooseAvatars.Size = new System.Drawing.Size(75, 23);
+            this.btnChooseAvatars.TabIndex = 11;
+            this.btnChooseAvatars.Text = "Avatars";
+            this.btnChooseAvatars.UseVisualStyleBackColor = true;
+            this.btnChooseAvatars.Click += new System.EventHandler(this.btnChooseAvatars_Click);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(705, 500);
+            this.Controls.Add(this.btnChooseAvatars);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.txtComment);
             this.Controls.Add(this.btnSave);
@@ -208,6 +220,7 @@
         private System.Windows.Forms.Button btnSave;
         private System.Windows.Forms.TextBox txtComment;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Button btnChooseAvatars;
     }
 }
 
