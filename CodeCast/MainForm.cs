@@ -151,14 +151,14 @@ namespace CodeCast
                 {
                     g.FillRectangle(Brushes.Black, 0, 0, frame.Width, frame.Height);
 
-                    var scale = 0.8 * frame.Width / txtComment.Width;
+                    var scale = 0.7 * frame.Width / txtComment.Width;
                     using (var fontToUse = new Font(txtComment.Font.FontFamily, (float)(txtComment.Font.Size * scale)))
                     {
-                        g.DrawString(txtComment.Text, fontToUse, Brushes.White, new Point(100, 50));
+                        g.DrawString(txtComment.Text, fontToUse, Brushes.White, new Point(150, 50));
                     }
 
                     var avatar = GetAvatarFromText(txtComment.Text);
-                    g.DrawImage(avatar, new Rectangle(10, 50, 64, 64));
+                    g.DrawImage(avatar, new Rectangle(10, 50, 100, 100));
                 }
             }
             else
